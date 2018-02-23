@@ -1,0 +1,147 @@
+#!/usr/bin/env php
+<?php
+/* Artisan Global
+ *
+ * Inspired by ha17's laravel-artisan-global
+ * (ref: https://github.com/ha17/laravel-artisan-global/blob/master/artisan)
+ *
+ * You can run this version of artisan under any subfolder of any Laravel
+ * project even if the original artisan file is missing.
+ *
+ * after installation, you can check the Laravel version by typing:
+ *   artisan --version
+ *
+ * you can install this global version of artisan by typing:
+ *   sudo ./artisan install
+ *
+ * you can uninstall  artisan by typing either:
+ *   sudo artisan remove
+ *   sudo artisan uninstall
+ */
+class ArtisanGlobal_31d6d6a184dab5253dc67460448b0aa020b3205c
+{
+    private $lookingFor          = 'bootstrap';
+    private $checkThisManyLevels = 100;
+
+    public function __construct($argv)
+    {
+        $installRoot  = $this->get_project_root();
+        /*
+         * --------------------------------------------------------------------
+         * Register The Auto Loader
+         * --------------------------------------------------------------------
+         * Composer provides a convenient, automatically generated class loader
+         * for our application. We just need to utilize it! We'll require it
+         * into the script here so that we do not have to worry about the
+         * loading of any our classes "manually". Feels great to relax.
+         */
+        $this->require_once("$installRoot/{$this->lookingFor}/autoload.php");
+        $app = $this->require_once("$installRoot/{$this->lookingFor}/app.php");
+
+        if($app){
+            $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+            $status = $kernel->handle(
+                $input = new Symfony\Component\Console\Input\ArgvInput,
+                new Symfony\Component\Console\Output\ConsoleOutput
+            );
+            /*
+             * ----------------------------------------------------------------
+             * Shutdown The Application
+             * ----------------------------------------------------------------
+             * Once Artisan has finished running, we will fire off the shutdown
+             * events so that any final work may be done by the application
+             * before we shut down the process. This is the last thing to happen
+             * to the request.
+             */
+            $kernel->terminate($input, $status);
+            exit($status);
+        } else {
+            $installed_file = "/usr/local/bin/artisan";
+            if (!(file_exists($installed_file))) {
+                if(is_array($argv) && count($argv)==2){
+                    if($argv[1]=="install"){
+                      shell_exec("cp artisan $installed_file");
+                      echo "artisan installed!\n";
+                      return True;
+                    }
+                }
+                $command = getenv("_");
+                fwrite(STDERR, "If you want to install globally:\n");
+                fwrite(STDERR, "Type: sudo $command install\n");
+            }else {
+              if(is_array($argv) && count($argv)==2){
+                  if($argv[1]=="uninstall" || $argv[1]=="remove"){
+                    shell_exec("rm $installed_file");
+                    echo "artisan removed!\n";
+                    return True;
+                  }
+              }
+              fwrite(STDERR, "Cannot find any Laravel project not found!\n");
+            }
+        }
+    }
+
+    /**
+     * get_project_root
+     *
+     * The whole point of this is to be able to run artisan anywhere under the
+     * project install, but we want to make sure we run *our* artisan, and not
+     * have to know or configure anything about the project to do it.
+     * Hence, we look in current directory for the command, then a level up,
+     * and one more up, etc.
+     * Return the directory when we find it.
+     *
+     * @return string
+     */
+    private function get_project_root()
+    {
+        $directoryToCheckForCommand = explode('/', getcwd());
+        $i=0;
+        while ($this->recursive_folder_check($directoryToCheckForCommand, $i)) {
+            $i++;
+            $levelUp = implode('/', $directoryToCheckForCommand);
+            $artisanFile = $levelUp . '/' . $this->lookingFor;
+            if(file_exists($artisanFile)){
+              return implode('/', $directoryToCheckForCommand);
+            }
+            /*
+             * Remove a directory level from the end. For example, if we were
+             * in /home/install/laravel/project/app/Http
+             * We would remove Http and be in
+             *  /home/install/laravel/project/app
+             */
+            array_pop($directoryToCheckForCommand);
+        }
+    }
+
+    /**
+     * recursive_folder_check
+     *
+     * Check to see if we are still checking, or if something changed (except
+     * finding the command) and we want to leave the loop.
+     *
+     * @return boolean
+     */
+    private function recursive_folder_check($directoryToCheckForCommand, $i)
+    {
+        return sizeof($directoryToCheckForCommand) >= 2
+            && $i<$this->checkThisManyLevels;
+    }
+
+    /**
+     * require_once
+     *
+     * Require the file if exists
+     *
+     * @return boolean
+     */
+    private function require_once($file)
+    {
+        if (file_exists($file) && is_file($file)) {
+            return require_once($file);
+        }
+        return false;
+    }
+}
+
+new ArtisanGlobal_31d6d6a184dab5253dc67460448b0aa020b3205c($argv);
